@@ -1,1 +1,149 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Echidna Gallery</title><style>*{box-sizing:border-box}body{margin:0;background:#101016;color:#eee;font-family:system-ui,sans-serif}main{max-width:1400px;margin:auto;padding:24px 16px}header{display:flex;justify-content:space-between;align-items:end;gap:18px;border-bottom:1px solid #292933;padding-bottom:20px}h1{margin:0;font-size:32px}p{margin:6px 0;color:#999}nav{display:flex;gap:8px;flex-wrap:wrap}button,input,select{background:#191920;border:1px solid #343440;color:#eee;border-radius:9px;padding:10px 13px}button.active{background:#7651a8}.toolbar{display:flex;gap:10px;margin:18px 0}input{flex:1}.grid{columns:4 230px;column-gap:14px}.card{break-inside:avoid;margin-bottom:14px;background:#18181f;border-radius:12px;overflow:hidden}.pic{position:relative;background:#25252d}.pic img{width:100%;display:block;min-height:220px;object-fit:cover}.badge{position:absolute;right:8px;top:8px;background:#8b2635;padding:5px 8px;border-radius:7px;font-size:12px}.safe{background:#333}.meta{padding:10px 12px}.meta small{display:block;color:#888;margin-top:4px}footer{text-align:center;color:#777;font-size:12px;padding:30px 0}@media(max-width:650px){header{align-items:flex-start;flex-direction:column}.grid{columns:2 150px}}</style></head><body><main><header><div><h1>♟ Echidna Gallery</h1><p>Re:Zero · 艾姬多娜同人图聚合站</p></div><nav><button class="active" onclick="filter('all',this)">全部</button><button onclick="filter('safe',this)">SFW</button><button onclick="filter('nsfw',this)">NSFW</button></nav></header><div class="toolbar"><input id="search" placeholder="搜索艾姬多娜、标签、作者…" oninput="render()"><select id="sort" onchange="render()"><option value="new">最新</option><option value="score">评分</option></select></div><div id="grid" class="grid"></div><footer>本站为作品索引示例；正式版将接入允许聚合的图片 API，并保留作者与原站链接。</footer></main><script>const data=[{title:'Echidna',type:'nsfw',score:982,url:'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=900'},{title:'Echidna / Re:Zero',type:'safe',score:921,url:'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=900'},{title:'Witch of Greed',type:'nsfw',score:875,url:'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=900'},{title:'Echidna',type:'safe',score:810,url:'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=900'}];let current='all';function filter(x,b){current=x;document.querySelectorAll('nav button').forEach(v=>v.classList.remove('active'));b.classList.add('active');render()}function render(){let q=document.getElementById('search').value.toLowerCase(),s=document.getElementById('sort').value,a=data.filter(x=>(current==='all'||x.type===current)&&x.title.toLowerCase().includes(q));if(s==='score')a.sort((x,y)=>y.score-x.score);document.getElementById('grid').innerHTML=a.map(x=>`<article class="card"><div class="pic"><img src="${x.url}" alt="${x.title}" loading="lazy"><span class="badge ${x.type==='safe'?'safe':''}">${x.type==='safe'?'SFW':'NSFW'}</span></div><div class="meta"><b>${x.title}</b><small>评分 ${x.score} · 来源待接入</small></div></article>`).join('')||'<p>没有找到结果。</p>'}render();</script></body></html>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Echidna Gallery</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#111;color:#eee;font-family:Arial,sans-serif}
+header{padding:22px 16px;text-align:center;background:#181818;position:sticky;top:0;z-index:5}
+h1{margin:0 0 6px;font-size:26px}
+.sub{color:#999;font-size:13px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:15px}
+button,input{border:0;border-radius:8px;padding:10px 13px}
+button{background:#333;color:#fff;cursor:pointer}
+button.active{background:#8b5cf6}
+input{background:#292929;color:#fff;min-width:190px}
+main{padding:16px;max-width:1200px;margin:auto}
+.status{text-align:center;color:#aaa;padding:15px}
+.grid{columns:2 180px;column-gap:12px}
+.card{break-inside:avoid;margin-bottom:12px;background:#1b1b1b;border-radius:10px;overflow:hidden}
+.card img{display:block;width:100%;height:auto;background:#222}
+.info{padding:9px;font-size:12px;color:#aaa}
+.badge{display:inline-block;padding:3px 7px;border-radius:5px;margin-right:5px;color:#fff}
+.sfw{background:#287a46}
+.nsfw{background:#9b3030}
+a{color:#aaa;text-decoration:none}
+@media(min-width:700px){.grid{columns:4 180px}}
+</style>
+</head>
+
+<body>
+<header>
+<h1>☕ Echidna Gallery</h1>
+<div class="sub">Re:Zero · Echidna Fan Gallery</div>
+
+<div class="controls">
+<button class="active" data-filter="all">全部</button>
+<button data-filter="safe">SFW</button>
+<button data-filter="nsfw">NSFW</button>
+<input id="search" placeholder="搜索标签 / Search tags">
+<button id="load">刷新 / Reload</button>
+</div>
+</header>
+
+<main>
+<div id="status" class="status">正在加载图片…</div>
+<div id="grid" class="grid"></div>
+</main>
+
+<script>
+const API="https://danbooru.donmai.us/posts.json";
+
+let posts=[];
+let filter="all";
+
+const grid=document.getElementById("grid");
+const status=document.getElementById("status");
+const search=document.getElementById("search");
+
+async function loadPosts(){
+  status.textContent="正在从图库加载…";
+  grid.innerHTML="";
+
+  try{
+    const url=API+"?limit=40&tags=echidna_%28re:zero%29";
+    const res=await fetch(url);
+
+    if(!res.ok) throw new Error("API "+res.status);
+
+    posts=await res.json();
+    render();
+  }catch(e){
+    console.error(e);
+    status.textContent="加载失败，请稍后刷新。";
+  }
+}
+
+function getRating(post){
+  return post.rating || "q";
+}
+
+function render(){
+  const keyword=search.value.trim().toLowerCase();
+
+  const list=posts.filter(p=>{
+    const rating=getRating(p);
+
+    let type=true;
+    if(filter==="safe") type=rating==="g" || rating==="s";
+    if(filter==="nsfw") type=rating==="q" || rating==="e";
+
+    const tags=(p.tag_string || "").toLowerCase();
+    const textMatch=!keyword || tags.includes(keyword);
+
+    return type && textMatch;
+  });
+
+  status.textContent=`找到 ${list.length} 张图片`;
+
+  if(!list.length){
+    grid.innerHTML='<div class="status">没有找到符合条件的图片</div>';
+    return;
+  }
+
+  grid.innerHTML=list.map(p=>{
+    const rating=getRating(p);
+    const isNSFW=rating==="e" || rating==="q";
+
+    const image=p.large_file_url || p.file_url || p.preview_file_url;
+    const source=p.source || "Danbooru";
+
+    return `
+      <article class="card">
+        <a href="https://danbooru.donmai.us/posts/${p.id}" target="_blank" rel="noopener">
+          <img src="${image}" loading="lazy" alt="Echidna">
+        </a>
+        <div class="info">
+          <span class="badge ${isNSFW?'nsfw':'sfw'}">
+            ${isNSFW?'NSFW':'SFW'}
+          </span>
+          ⭐ ${p.score ?? 0}
+          <br><br>
+          来源：
+          <a href="${source}" target="_blank" rel="noopener">
+            查看原图 / Source
+          </a>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+document.querySelectorAll("[data-filter]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll("[data-filter]").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    filter=btn.dataset.filter;
+    render();
+  });
+});
+
+search.addEventListener("input",render);
+document.getElementById("load").addEventListener("click",loadPosts);
+
+loadPosts();
+</script>
+</body>
+</html>
