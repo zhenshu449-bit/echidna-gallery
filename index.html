@@ -16,7 +16,7 @@ body{
 }
 
 header{
-  padding:22px 16px;
+  padding:20px 12px;
   text-align:center;
   background:#181818;
   position:sticky;
@@ -35,17 +35,22 @@ h1{
 }
 
 .controls{
+  margin-top:15px;
+}
+
+.main-filter,
+.tag-filter{
   display:flex;
-  gap:8px;
+  gap:7px;
   flex-wrap:wrap;
   justify-content:center;
-  margin-top:15px;
+  margin-bottom:9px;
 }
 
 button,input{
   border:0;
   border-radius:8px;
-  padding:10px 13px;
+  padding:9px 12px;
 }
 
 button{
@@ -60,7 +65,6 @@ button.active{
 
 button:disabled{
   opacity:.5;
-  cursor:not-allowed;
 }
 
 input{
@@ -156,51 +160,71 @@ a{
 Re:Zero · Echidna Fan Gallery
 </div>
 
+<!-- 第一层：SFW / NSFW -->
+
 <div class="controls">
 
-<button class="active" data-filter="all">
+<div class="main-filter">
+
+<button class="active" data-rating="all">
 全部
 </button>
 
-<button data-filter="safe">
+<button data-rating="safe">
 SFW
 </button>
 
-<button data-filter="nsfw">
+<button data-rating="nsfw">
 NSFW
 </button>
 
-<button data-filter="solo">
+</div>
+
+
+<!-- 第二层：标签分类 -->
+
+<div class="tag-filter">
+
+<button class="active" data-tag="all">
+全部
+</button>
+
+<button data-tag="solo">
 单人
 </button>
 
-<button data-filter="multiple">
+<button data-tag="multiple">
 多人
 </button>
 
-<button data-filter="swimsuit">
+<button data-tag="swimsuit">
 泳装
 </button>
 
-<button data-filter="maid">
+<button data-tag="maid">
 女仆
 </button>
 
-<button data-filter="kimono">
+<button data-tag="kimono">
 和服
 </button>
 
-<button data-filter="school_uniform">
+<button data-tag="school_uniform">
 校服
 </button>
 
-<button data-filter="comic">
+<button data-tag="comic">
 漫画
 </button>
 
-<button data-filter="cosplay">
+<button data-tag="cosplay">
 Cosplay
 </button>
+
+</div>
+
+
+<div class="main-filter">
 
 <input
 id="search"
@@ -212,7 +236,11 @@ placeholder="搜索标签 / Search tags"
 </button>
 
 </div>
+
+</div>
+
 </header>
+
 
 <main>
 
@@ -230,6 +258,7 @@ placeholder="搜索标签 / Search tags"
 
 </main>
 
+
 <script>
 
 const API="https://danbooru.donmai.us/posts.json";
@@ -242,11 +271,14 @@ let posts=[];
 
 let page=1;
 
-let filter="all";
+let ratingFilter="all";
+
+let tagFilter="all";
 
 let loading=false;
 
 let finished=false;
+
 
 const grid=document.getElementById("grid");
 
@@ -260,73 +292,123 @@ const reload=document.getElementById("reload");
 
 
 function getRating(post){
+
   return post.rating||"q";
+
 }
 
 
 function isNSFW(post){
+
   const rating=getRating(post);
+
   return rating==="q"||rating==="e";
+
 }
 
 
-/* 分类对应的 Danbooru 标签 */
+/* 分类标签 */
 
 const categoryTags={
 
-  solo:["solo"],
+  solo:[
+    "solo"
+  ],
 
-  multiple:["multiple_girls","multiple_boys","group"],
+  multiple:[
+    "multiple_girls",
+    "multiple_boys",
+    "multiple_person",
+    "group"
+  ],
 
-  swimsuit:["swimsuit"],
+  swimsuit:[
+    "swimsuit",
+    "bikini"
+  ],
 
-  maid:["maid"],
+  maid:[
+    "maid"
+  ],
 
-  kimono:["kimono"],
+  kimono:[
+    "kimono",
+    "yukata"
+  ],
 
-  school_uniform:["school_uniform"],
+  school_uniform:[
+    "school_uniform",
+    "serafuku",
+    "seifuku"
+  ],
 
-  comic:["comic","comic_page","manga"],
+  comic:[
+    "comic",
+    "comic_page",
+    "manga"
+  ],
 
-  cosplay:["cosplay"]
+  cosplay:[
+    "cosplay"
+  ]
 
 };
 
 
-function matchCategory(post,category){
+function matchTag(post){
 
-  if(category==="all") return true;
+  if(tagFilter==="all"){
+    return true;
+  }
+
+  const tags=
+    (post.tag_string||"")
+    .toLowerCase()
+    .split(" ");
+
+  const wanted=
+    categoryTags[tagFilter]||[];
+
+  return wanted.some(tag=>{
+    return tags.includes(tag);
+  });
+
+}
+
+
+function matchRating(post){
 
   const rating=getRating(post);
 
-  if(category==="safe"){
+  if(ratingFilter==="all"){
+    return true;
+  }
+
+  if(ratingFilter==="safe"){
     return rating==="g"||rating==="s";
   }
 
-  if(category==="nsfw"){
+  if(ratingFilter==="nsfw"){
     return rating==="q"||rating==="e";
   }
 
-  const tags=(post.tag_string||"").toLowerCase();
-
-  const wanted=categoryTags[category]||[];
-
-  return wanted.some(tag=>{
-    return tags.split(" ").includes(tag);
-  });
+  return true;
 
 }
 
 
 async function loadPage(){
 
-  if(loading||finished) return;
+  if(loading||finished){
+    return;
+  }
 
   loading=true;
 
   loadMore.disabled=true;
 
-  status.textContent=`正在加载第 ${page} 页…`;
+  status.textContent=
+    `正在加载第 ${page} 页…`;
 
   try{
 
@@ -336,38 +418,51 @@ async function loadPage(){
       "&page="+page+
       "&tags="+TAG;
 
-    const response=await fetch(url);
+    const response=
+      await fetch(url);
 
     if(!response.ok){
-      throw new Error("API Error "+response.status);
+      throw new Error(
+        "API Error "+response.status
+      );
     }
 
-    const newPosts=await response.json();
+    const newPosts=
+      await response.json();
 
-    if(!Array.isArray(newPosts)||newPosts.length===0){
+    if(
+      !Array.isArray(newPosts)||
+      newPosts.length===0
+    ){
 
       finished=true;
 
-      status.textContent="已经没有更多图片了";
+      status.textContent=
+        "已经没有更多图片了";
 
       loadMore.style.display="none";
 
       return;
+
     }
 
-    const existingIds=new Set(
-      posts.map(p=>p.id)
-    );
 
-    const unique=newPosts.filter(
-      p=>!existingIds.has(p.id)
-    );
+    const existingIds=
+      new Set(posts.map(p=>p.id));
+
+
+    const unique=
+      newPosts.filter(
+        p=>!existingIds.has(p.id)
+      );
+
 
     posts.push(...unique);
 
     page++;
 
     render();
+
 
     if(newPosts.length<LIMIT){
 
@@ -400,20 +495,27 @@ function render(){
   const keyword=
     search.value.trim().toLowerCase();
 
-  const list=posts.filter(post=>{
 
-    const categoryOK=
-      matchCategory(post,filter);
+  const list=
+    posts.filter(post=>{
 
-    const tags=
-      (post.tag_string||"").toLowerCase();
+      const ratingOK=
+        matchRating(post);
 
-    const searchOK=
-      !keyword||tags.includes(keyword);
+      const tagOK=
+        matchTag(post);
 
-    return categoryOK&&searchOK;
+      const tags=
+        (post.tag_string||"")
+        .toLowerCase();
 
-  });
+      const searchOK=
+        !keyword||
+        tags.includes(keyword);
+
+      return ratingOK&&tagOK&&searchOK;
+
+    });
 
 
   status.textContent=
@@ -430,21 +532,22 @@ function render(){
   }
 
 
-  grid.innerHTML=list.map(post=>{
+  grid.innerHTML=
+    list.map(post=>{
 
-    const rating=getRating(post);
+      const nsfw=
+        isNSFW(post);
 
-    const nsfw=isNSFW(post);
+      const image=
+        post.large_file_url||
+        post.file_url||
+        post.preview_file_url;
 
-    const image=
-      post.large_file_url||
-      post.file_url||
-      post.preview_file_url;
-
-    const source=post.source||"";
+      const source=
+        post.source||"";
 
 
-    return `
+      return `
 
       <article class="card">
 
@@ -462,6 +565,7 @@ function render(){
 
         </a>
 
+
         <div class="info">
 
           <span class="badge ${nsfw?"nsfw":"sfw"}">
@@ -472,6 +576,7 @@ function render(){
 
           <br><br>
 
+
           <a
             href="https://danbooru.donmai.us/posts/${post.id}"
             target="_blank"
@@ -479,6 +584,7 @@ function render(){
           >
             查看原帖 / Original Post
           </a>
+
 
           ${
             source
@@ -499,28 +605,57 @@ function render(){
 
       </article>
 
-    `;
+      `;
 
-  }).join("");
+    }).join("");
 
 }
 
 
+/* 第一层按钮 */
+
 document
-.querySelectorAll("[data-filter]")
+.querySelectorAll("[data-rating]")
 .forEach(button=>{
 
   button.addEventListener("click",()=>{
 
     document
-    .querySelectorAll("[data-filter]")
+    .querySelectorAll("[data-rating]")
     .forEach(b=>{
       b.classList.remove("active");
     });
 
     button.classList.add("active");
 
-    filter=button.dataset.filter;
+    ratingFilter=
+      button.dataset.rating;
+
+    render();
+
+  });
+
+});
+
+
+/* 第二层按钮 */
+
+document
+.querySelectorAll("[data-tag]")
+.forEach(button=>{
+
+  button.addEventListener("click",()=>{
+
+    document
+    .querySelectorAll("[data-tag]")
+    .forEach(b=>{
+      b.classList.remove("active");
+    });
+
+    button.classList.add("active");
+
+    tagFilter=
+      button.dataset.tag;
 
     render();
 
@@ -549,7 +684,8 @@ reload.addEventListener("click",()=>{
 
   finished=false;
 
-  loadMore.style.display="inline-block";
+  loadMore.style.display=
+    "inline-block";
 
   grid.innerHTML="";
 
@@ -561,6 +697,3 @@ reload.addEventListener("click",()=>{
 loadPage();
 
 </script>
-
-</body>
-</html>
