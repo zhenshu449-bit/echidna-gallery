@@ -38,8 +38,7 @@ h1{
   margin-top:15px;
 }
 
-.main-filter,
-.tag-filter{
+.row{
   display:flex;
   gap:7px;
   flex-wrap:wrap;
@@ -65,6 +64,7 @@ button.active{
 
 button:disabled{
   opacity:.5;
+  cursor:not-allowed;
 }
 
 input{
@@ -160,11 +160,11 @@ a{
 Re:Zero · Echidna Fan Gallery
 </div>
 
-<!-- 第一层：SFW / NSFW -->
-
 <div class="controls">
 
-<div class="main-filter">
+<!-- 第一层 -->
+
+<div class="row">
 
 <button class="active" data-rating="all">
 全部
@@ -181,9 +181,9 @@ NSFW
 </div>
 
 
-<!-- 第二层：标签分类 -->
+<!-- 第二层 -->
 
-<div class="tag-filter">
+<div class="row">
 
 <button class="active" data-tag="all">
 全部
@@ -224,7 +224,9 @@ Cosplay
 </div>
 
 
-<div class="main-filter">
+<!-- 搜索 -->
+
+<div class="row">
 
 <input
 id="search"
@@ -251,9 +253,11 @@ placeholder="搜索标签 / Search tags"
 <div id="grid" class="grid"></div>
 
 <div class="load-area">
+
 <button id="loadMore">
-加载更多 / Load More
+加载更多 500 张 / Load 500 More
 </button>
+
 </div>
 
 </main>
@@ -265,7 +269,11 @@ const API="https://danbooru.donmai.us/posts.json";
 
 const TAG="echidna_%28re:zero%29";
 
-const LIMIT=300;
+/* 每次最多加载 5 页 × 100 = 500 */
+
+const PAGE_SIZE=100;
+
+const BATCH_PAGES=5;
 
 let posts=[];
 
@@ -397,6 +405,8 @@ function matchRating(post){
 }
 
 
+/* 加载一批：最多 500 张 */
+
 async function loadPage(){
 
   if(loading||finished){
@@ -408,69 +418,124 @@ async function loadPage(){
   loadMore.disabled=true;
 
   status.textContent=
-    `正在加载第 ${page} 页…`;
+    "正在加载最多 500 张图片…";
+
 
   try{
 
-    const url=
-      API+
-      "?limit="+LIMIT+
-      "&page="+page+
-      "&tags="+TAG;
+    let loadedThisTime=0;
 
-    const response=
-      await fetch(url);
+    let pagesLoaded=0;
 
-    if(!response.ok){
-      throw new Error(
-        "API Error "+response.status
-      );
-    }
 
-    const newPosts=
-      await response.json();
-
-    if(
-      !Array.isArray(newPosts)||
-      newPosts.length===0
+    for(
+      let i=0;
+      i<BATCH_PAGES;
+      i++
     ){
 
-      finished=true;
+      const currentPage=page+i;
 
-      status.textContent=
-        "已经没有更多图片了";
 
-      loadMore.style.display="none";
+      const url=
+        API+
+        "?limit="+PAGE_SIZE+
+        "&page="+currentPage+
+        "&tags="+TAG;
 
-      return;
+
+      const response=
+        await fetch(url);
+
+
+      if(!response.ok){
+
+        throw new Error(
+          "API Error "+response.status
+        );
+
+      }
+
+
+      const newPosts=
+        await response.json();
+
+
+      if(
+        !Array.isArray(newPosts)||
+        newPosts.length===0
+      ){
+
+        finished=true;
+
+        break;
+
+      }
+
+
+      const existingIds=
+        new Set(posts.map(p=>p.id));
+
+
+      const unique=
+        newPosts.filter(
+          p=>!existingIds.has(p.id)
+        );
+
+
+      posts.push(...unique);
+
+      loadedThisTime+=unique.length;
+
+      pagesLoaded++;
+
+
+      /*
+       * 如果不足 100 张，
+       * 说明已经到数据末尾。
+       */
+
+      if(newPosts.length<PAGE_SIZE){
+
+        finished=true;
+
+        break;
+
+      }
+
+
+      /*
+       * 请求之间暂停 300ms，
+       * 减少连续请求压力。
+       */
+
+      await new Promise(
+        resolve=>setTimeout(resolve,300)
+      );
 
     }
 
 
-    const existingIds=
-      new Set(posts.map(p=>p.id));
+    page+=pagesLoaded;
 
-
-    const unique=
-      newPosts.filter(
-        p=>!existingIds.has(p.id)
-      );
-
-
-    posts.push(...unique);
-
-    page++;
 
     render();
 
 
-    if(newPosts.length<LIMIT){
-
-      finished=true;
+    if(finished){
 
       loadMore.style.display="none";
 
+      status.textContent=
+        `已加载 ${posts.length} 张 · 已经没有更多图片了`;
+
+    }else{
+
+      status.textContent=
+        `已加载 ${posts.length} 张 · 本次新增 ${loadedThisTime} 张`;
+
     }
+
 
   }catch(error){
 
@@ -489,6 +554,8 @@ async function loadPage(){
 
 }
 
+
+/* 显示图片 */
 
 function render(){
 
@@ -513,7 +580,12 @@ function render(){
         !keyword||
         tags.includes(keyword);
 
-      return ratingOK&&tagOK&&searchOK;
+
+      return(
+        ratingOK&&
+        tagOK&&
+        searchOK
+      );
 
     });
 
@@ -538,10 +610,12 @@ function render(){
       const nsfw=
         isNSFW(post);
 
+
       const image=
         post.large_file_url||
         post.file_url||
         post.preview_file_url;
+
 
       const source=
         post.source||"";
@@ -576,7 +650,6 @@ function render(){
 
           <br><br>
 
-
           <a
             href="https://danbooru.donmai.us/posts/${post.id}"
             target="_blank"
@@ -590,6 +663,7 @@ function render(){
             source
             ?
             `<br><br>
+
             <a
               href="${source}"
               target="_blank"
@@ -597,7 +671,9 @@ function render(){
             >
               原始来源 / Source
             </a>`
+
             :
+
             ""
           }
 
@@ -612,57 +688,71 @@ function render(){
 }
 
 
-/* 第一层按钮 */
+/* SFW / NSFW / 全部 */
 
 document
 .querySelectorAll("[data-rating]")
 .forEach(button=>{
 
-  button.addEventListener("click",()=>{
+  button.addEventListener(
+    "click",
+    ()=>{
 
-    document
-    .querySelectorAll("[data-rating]")
-    .forEach(b=>{
-      b.classList.remove("active");
-    });
+      document
+      .querySelectorAll("[data-rating]")
+      .forEach(b=>{
+        b.classList.remove("active");
+      });
 
-    button.classList.add("active");
 
-    ratingFilter=
-      button.dataset.rating;
+      button.classList.add("active");
 
-    render();
 
-  });
+      ratingFilter=
+        button.dataset.rating;
+
+
+      render();
+
+    }
+  );
 
 });
 
 
-/* 第二层按钮 */
+/* 标签分类 */
 
 document
 .querySelectorAll("[data-tag]")
 .forEach(button=>{
 
-  button.addEventListener("click",()=>{
+  button.addEventListener(
+    "click",
+    ()=>{
 
-    document
-    .querySelectorAll("[data-tag]")
-    .forEach(b=>{
-      b.classList.remove("active");
-    });
+      document
+      .querySelectorAll("[data-tag]")
+      .forEach(b=>{
+        b.classList.remove("active");
+      });
 
-    button.classList.add("active");
 
-    tagFilter=
-      button.dataset.tag;
+      button.classList.add("active");
 
-    render();
 
-  });
+      tagFilter=
+        button.dataset.tag;
+
+
+      render();
+
+    }
+  );
 
 });
 
+
+/* 搜索 */
 
 search.addEventListener(
   "input",
@@ -670,30 +760,42 @@ search.addEventListener(
 );
 
 
+/* 加载更多 */
+
 loadMore.addEventListener(
   "click",
   loadPage
 );
 
 
-reload.addEventListener("click",()=>{
+/* 刷新 */
 
-  posts=[];
+reload.addEventListener(
+  "click",
+  ()=>{
 
-  page=1;
+    posts=[];
 
-  finished=false;
+    page=1;
 
-  loadMore.style.display=
-    "inline-block";
+    finished=false;
 
-  grid.innerHTML="";
+    loadMore.style.display=
+      "inline-block";
 
-  loadPage();
+    grid.innerHTML="";
 
-});
+    loadPage();
 
+  }
+);
+
+
+/* 首次加载 */
 
 loadPage();
 
 </script>
+
+</body>
+</html>
