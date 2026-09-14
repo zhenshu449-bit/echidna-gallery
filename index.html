@@ -12,7 +12,7 @@ body{
   margin:0;
   background:#111;
   color:#eee;
-  font-family:Arial,sans-serif
+  font-family:Arial,sans-serif;
 }
 
 header{
@@ -21,17 +21,17 @@ header{
   background:#181818;
   position:sticky;
   top:0;
-  z-index:5
+  z-index:5;
 }
 
 h1{
   margin:0 0 6px;
-  font-size:26px
+  font-size:26px;
 }
 
 .sub{
   color:#999;
-  font-size:13px
+  font-size:13px;
 }
 
 .controls{
@@ -39,51 +39,51 @@ h1{
   gap:8px;
   flex-wrap:wrap;
   justify-content:center;
-  margin-top:15px
+  margin-top:15px;
 }
 
 button,input{
   border:0;
   border-radius:8px;
-  padding:10px 13px
+  padding:10px 13px;
 }
 
 button{
   background:#333;
   color:#fff;
-  cursor:pointer
+  cursor:pointer;
 }
 
 button.active{
-  background:#8b5cf6
+  background:#8b5cf6;
 }
 
 button:disabled{
   opacity:.5;
-  cursor:not-allowed
+  cursor:not-allowed;
 }
 
 input{
   background:#292929;
   color:#fff;
-  min-width:190px
+  min-width:190px;
 }
 
 main{
   padding:16px;
   max-width:1200px;
-  margin:auto
+  margin:auto;
 }
 
 .status{
   text-align:center;
   color:#aaa;
-  padding:15px
+  padding:15px;
 }
 
 .grid{
   columns:2 180px;
-  column-gap:12px
+  column-gap:12px;
 }
 
 .card{
@@ -91,20 +91,20 @@ main{
   margin-bottom:12px;
   background:#1b1b1b;
   border-radius:10px;
-  overflow:hidden
+  overflow:hidden;
 }
 
 .card img{
   display:block;
   width:100%;
   height:auto;
-  background:#222
+  background:#222;
 }
 
 .info{
   padding:9px;
   font-size:12px;
-  color:#aaa
+  color:#aaa;
 }
 
 .badge{
@@ -112,35 +112,35 @@ main{
   padding:3px 7px;
   border-radius:5px;
   margin-right:5px;
-  color:#fff
+  color:#fff;
 }
 
 .sfw{
-  background:#287a46
+  background:#287a46;
 }
 
 .nsfw{
-  background:#9b3030
+  background:#9b3030;
 }
 
 a{
   color:#aaa;
-  text-decoration:none
+  text-decoration:none;
 }
 
 .load-area{
   text-align:center;
-  padding:25px 10px
+  padding:25px 10px;
 }
 
 #loadMore{
   padding:12px 25px;
-  font-size:15px
+  font-size:15px;
 }
 
 @media(min-width:700px){
   .grid{
-    columns:4 180px
+    columns:4 180px;
   }
 }
 </style>
@@ -170,9 +170,41 @@ SFW
 NSFW
 </button>
 
+<button data-filter="solo">
+单人
+</button>
+
+<button data-filter="multiple">
+多人
+</button>
+
+<button data-filter="swimsuit">
+泳装
+</button>
+
+<button data-filter="maid">
+女仆
+</button>
+
+<button data-filter="kimono">
+和服
+</button>
+
+<button data-filter="school_uniform">
+校服
+</button>
+
+<button data-filter="comic">
+漫画
+</button>
+
+<button data-filter="cosplay">
+Cosplay
+</button>
+
 <input
-  id="search"
-  placeholder="搜索标签 / Search tags"
+id="search"
+placeholder="搜索标签 / Search tags"
 >
 
 <button id="reload">
@@ -180,7 +212,6 @@ NSFW
 </button>
 
 </div>
-
 </header>
 
 <main>
@@ -192,118 +223,145 @@ NSFW
 <div id="grid" class="grid"></div>
 
 <div class="load-area">
-
 <button id="loadMore">
 加载更多 / Load More
 </button>
-
 </div>
 
 </main>
 
 <script>
 
-const API =
-"https://danbooru.donmai.us/posts.json";
+const API="https://danbooru.donmai.us/posts.json";
 
-const TAG =
-"echidna_%28re:zero%29";
+const TAG="echidna_%28re:zero%29";
 
-const LIMIT = 40;
+const LIMIT=40;
 
-let posts = [];
-let page = 1;
-let filter = "all";
-let loading = false;
-let finished = false;
+let posts=[];
 
-const grid =
-document.getElementById("grid");
+let page=1;
 
-const status =
-document.getElementById("status");
+let filter="all";
 
-const search =
-document.getElementById("search");
+let loading=false;
 
-const loadMore =
-document.getElementById("loadMore");
+let finished=false;
 
-const reload =
-document.getElementById("reload");
+const grid=document.getElementById("grid");
+
+const status=document.getElementById("status");
+
+const search=document.getElementById("search");
+
+const loadMore=document.getElementById("loadMore");
+
+const reload=document.getElementById("reload");
 
 
 function getRating(post){
-  return post.rating || "q";
+  return post.rating||"q";
 }
 
 
 function isNSFW(post){
+  const rating=getRating(post);
+  return rating==="q"||rating==="e";
+}
 
-  const rating = getRating(post);
 
-  return rating === "q" ||
-         rating === "e";
+/* 分类对应的 Danbooru 标签 */
+
+const categoryTags={
+
+  solo:["solo"],
+
+  multiple:["multiple_girls","multiple_boys","group"],
+
+  swimsuit:["swimsuit"],
+
+  maid:["maid"],
+
+  kimono:["kimono"],
+
+  school_uniform:["school_uniform"],
+
+  comic:["comic","comic_page","manga"],
+
+  cosplay:["cosplay"]
+
+};
+
+
+function matchCategory(post,category){
+
+  if(category==="all") return true;
+
+  const rating=getRating(post);
+
+  if(category==="safe"){
+    return rating==="g"||rating==="s";
+  }
+
+  if(category==="nsfw"){
+    return rating==="q"||rating==="e";
+  }
+
+  const tags=(post.tag_string||"").toLowerCase();
+
+  const wanted=categoryTags[category]||[];
+
+  return wanted.some(tag=>{
+    return tags.split(" ").includes(tag);
+  });
+
 }
 
 
 async function loadPage(){
 
-  if(loading || finished) return;
+  if(loading||finished) return;
 
-  loading = true;
+  loading=true;
 
-  loadMore.disabled = true;
+  loadMore.disabled=true;
 
-  status.textContent =
-    `正在加载第 ${page} 页…`;
+  status.textContent=`正在加载第 ${page} 页…`;
 
   try{
 
-    const url =
-      API +
-      "?limit=" +
-      LIMIT +
-      "&page=" +
-      page +
-      "&tags=" +
-      TAG;
+    const url=
+      API+
+      "?limit="+LIMIT+
+      "&page="+page+
+      "&tags="+TAG;
 
-    const response =
-      await fetch(url);
+    const response=await fetch(url);
 
     if(!response.ok){
-      throw new Error(
-        "API Error " + response.status
-      );
+      throw new Error("API Error "+response.status);
     }
 
-    const newPosts =
-      await response.json();
+    const newPosts=await response.json();
 
-    if(!Array.isArray(newPosts) ||
-       newPosts.length === 0){
+    if(!Array.isArray(newPosts)||newPosts.length===0){
 
-      finished = true;
+      finished=true;
 
-      status.textContent =
-        `已经没有更多图片了`;
+      status.textContent="已经没有更多图片了";
 
-      loadMore.style.display =
-        "none";
+      loadMore.style.display="none";
 
       return;
     }
 
+    const existingIds=new Set(
+      posts.map(p=>p.id)
+    );
 
-    const existingIds =
-      new Set(posts.map(p => p.id));
-
-    const unique =
-      newPosts.filter(
-        p => !existingIds.has(p.id)
-      );
-
+    const unique=newPosts.filter(
+      p=>!existingIds.has(p.id)
+    );
 
     posts.push(...unique);
 
@@ -311,202 +369,164 @@ async function loadPage(){
 
     render();
 
+    if(newPosts.length<LIMIT){
 
-    if(newPosts.length < LIMIT){
+      finished=true;
 
-      finished = true;
+      loadMore.style.display="none";
 
-      loadMore.style.display =
-        "none";
     }
 
   }catch(error){
 
     console.error(error);
 
-    status.textContent =
+    status.textContent=
       "加载失败，请稍后再试。";
 
   }finally{
 
-    loading = false;
+    loading=false;
 
-    loadMore.disabled = false;
+    loadMore.disabled=false;
+
   }
+
 }
 
 
 function render(){
 
-  const keyword =
+  const keyword=
     search.value.trim().toLowerCase();
 
+  const list=posts.filter(post=>{
 
-  const list =
-    posts.filter(post => {
+    const categoryOK=
+      matchCategory(post,filter);
 
-      const rating =
-        getRating(post);
+    const tags=
+      (post.tag_string||"").toLowerCase();
 
+    const searchOK=
+      !keyword||tags.includes(keyword);
 
-      let typeOK = true;
+    return categoryOK&&searchOK;
 
-
-      if(filter === "safe"){
-
-        typeOK =
-          rating === "g" ||
-          rating === "s";
-
-      }
+  });
 
 
-      if(filter === "nsfw"){
-
-        typeOK =
-          rating === "q" ||
-          rating === "e";
-
-      }
-
-
-      const tags =
-        (post.tag_string || "")
-        .toLowerCase();
-
-
-      const searchOK =
-        !keyword ||
-        tags.includes(keyword);
-
-
-      return typeOK && searchOK;
-
-    });
-
-
-  status.textContent =
+  status.textContent=
     `已加载 ${posts.length} 张 · 当前显示 ${list.length} 张`;
 
 
   if(!list.length){
 
-    grid.innerHTML =
+    grid.innerHTML=
       '<div class="status">没有找到符合条件的图片</div>';
 
     return;
+
   }
 
 
-  grid.innerHTML =
-    list.map(post => {
+  grid.innerHTML=list.map(post=>{
 
-      const rating =
-        getRating(post);
+    const rating=getRating(post);
 
-      const nsfw =
-        isNSFW(post);
+    const nsfw=isNSFW(post);
 
+    const image=
+      post.large_file_url||
+      post.file_url||
+      post.preview_file_url;
 
-      const image =
-        post.large_file_url ||
-        post.file_url ||
-        post.preview_file_url;
+    const source=post.source||"";
 
 
-      const source =
-        post.source || "";
+    return `
 
+      <article class="card">
 
-      return `
+        <a
+          href="https://danbooru.donmai.us/posts/${post.id}"
+          target="_blank"
+          rel="noopener"
+        >
 
-        <article class="card">
+          <img
+            src="${image}"
+            loading="lazy"
+            alt="Echidna"
+          >
+
+        </a>
+
+        <div class="info">
+
+          <span class="badge ${nsfw?"nsfw":"sfw"}">
+            ${nsfw?"NSFW":"SFW"}
+          </span>
+
+          ⭐ ${post.score??0}
+
+          <br><br>
 
           <a
             href="https://danbooru.donmai.us/posts/${post.id}"
             target="_blank"
             rel="noopener"
           >
-
-            <img
-              src="${image}"
-              loading="lazy"
-              alt="Echidna"
-            >
-
+            查看原帖 / Original Post
           </a>
 
-
-          <div class="info">
-
-            <span class="badge ${nsfw ? "nsfw" : "sfw"}">
-
-              ${nsfw ? "NSFW" : "SFW"}
-
-            </span>
-
-            ⭐ ${post.score ?? 0}
-
-            <br><br>
-
+          ${
+            source
+            ?
+            `<br><br>
             <a
-              href="https://danbooru.donmai.us/posts/${post.id}"
+              href="${source}"
               target="_blank"
               rel="noopener"
             >
-              查看原帖 / Original Post
-            </a>
+              原始来源 / Source
+            </a>`
+            :
+            ""
+          }
 
-            ${
-              source
-              ? `
-                <br><br>
-                <a
-                  href="${source}"
-                  target="_blank"
-                  rel="noopener"
-                >
-                  原始来源 / Source
-                </a>
-              `
-              : ""
-            }
+        </div>
 
-          </div>
+      </article>
 
-        </article>
+    `;
 
-      `;
+  }).join("");
 
-    }).join("");
 }
 
 
 document
-  .querySelectorAll("[data-filter]")
-  .forEach(button => {
+.querySelectorAll("[data-filter]")
+.forEach(button=>{
 
-    button.addEventListener(
-      "click",
-      () => {
+  button.addEventListener("click",()=>{
 
-        document
-          .querySelectorAll("[data-filter]")
-          .forEach(
-            b => b.classList.remove("active")
-          );
+    document
+    .querySelectorAll("[data-filter]")
+    .forEach(b=>{
+      b.classList.remove("active");
+    });
 
-        button.classList.add("active");
+    button.classList.add("active");
 
-        filter =
-          button.dataset.filter;
+    filter=button.dataset.filter;
 
-        render();
-
-      }
-    );
+    render();
 
   });
+
+});
 
 
 search.addEventListener(
@@ -521,28 +541,22 @@ loadMore.addEventListener(
 );
 
 
-reload.addEventListener(
-  "click",
-  () => {
+reload.addEventListener("click",()=>{
 
-    posts = [];
+  posts=[];
 
-    page = 1;
+  page=1;
 
-    finished = false;
+  finished=false;
 
-    loadMore.style.display =
-      "inline-block";
+  loadMore.style.display="inline-block";
 
-    grid.innerHTML = "";
+  grid.innerHTML="";
 
-    loadPage();
+  loadPage();
 
-  }
-);
+});
 
-
-/* 第一次加载 */
 
 loadPage();
 
